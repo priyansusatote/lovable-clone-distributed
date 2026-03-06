@@ -1,0 +1,2 @@
+com.priyansu.distributed_lovable.common_lib.security.SharedSecurityAutoConfiguration
+com.priyansu.distributed_lovable.common_lib.exception.SharedExceptionAutoConfiguration
