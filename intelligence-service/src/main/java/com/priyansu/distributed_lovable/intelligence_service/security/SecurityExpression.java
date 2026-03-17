@@ -4,11 +4,15 @@ import com.priyansu.distributed_lovable.common_lib.enums.ProjectPermissions;
 import com.priyansu.distributed_lovable.common_lib.security.AuthUtil;
 
 import com.priyansu.distributed_lovable.intelligence_service.client.WorkspaceClient;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityExpression {  //for Custom Bean Security Check (of  Security Method @PreAutherize)
 
     private final AuthUtil authUtil;
@@ -17,8 +21,15 @@ public class SecurityExpression {  //for Custom Bean Security Check (of  Securit
 
     //code is repetitive so to reduce, created separate method and just pass parameter
     public boolean hasPermission(Long projectId, ProjectPermissions projectPermissions) {
-
-        return workspaceClient.checkPermission(projectId, projectPermissions);
+        try {
+            return workspaceClient.checkPermission(projectId, projectPermissions);
+        } catch (FeignException.Unauthorized e) {
+            log.warn("Token expired or invalid during permission check for project: {}", projectId);
+            throw new CredentialsExpiredException("JWT token is expired or invalid");
+        } catch (FeignException e) {
+            log.error("Workspace-service failed during permission check: {}", e.getMessage());
+            return false;
+        }
     }
 
     //reduced code due to hasPermission

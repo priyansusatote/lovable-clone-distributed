@@ -1,5 +1,6 @@
 package com.priyansu.distributed_lovable.intelligence_service.llm.tools;
 
+import com.priyansu.distributed_lovable.common_lib.enums.ChatEventStatus;
 import com.priyansu.distributed_lovable.common_lib.enums.ChatEventType;
 import com.priyansu.distributed_lovable.intelligence_service.entity.ChatEvent;
 import com.priyansu.distributed_lovable.intelligence_service.entity.ChatMessage;
@@ -56,6 +57,7 @@ public class LlmResponseParser {  //code from Gemini
             Map<String, String> attrMap = extractAttributes(attributes);
 
             ChatEvent.ChatEventBuilder builder = ChatEvent.builder()
+                    .status(ChatEventStatus.CONFIRMED)
                     .chatMessage(parentMessage)
                     .content(content) // This is your Markdown content
                     .sequenceOrder(orderCounter++);
@@ -79,6 +81,7 @@ public class LlmResponseParser {  //code from Gemini
                         continue;
                     }
                     builder.type(ChatEventType.FILE_EDIT);
+                    builder.status(ChatEventStatus.PENDING);  //pending state by default (because it needs file-save event confirmation from minIo(workspace-service)
                     builder.filePath(attrMap.get("path"));
                 }
                 default -> log.warn("Unknown tag detected: {}", tagName);

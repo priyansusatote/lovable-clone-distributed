@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Optional;
 
-@FeignClient(name = "account-service", path = "/account")  //also enable Feign client in main class
+@FeignClient(name = "account-service", path = "/account", url="${ACCOUNT_SERVICE_URI:}")  //also enable Feign client in main class
 public interface AccountClient {
 
     @GetMapping("/internal/v1/users/by-email")

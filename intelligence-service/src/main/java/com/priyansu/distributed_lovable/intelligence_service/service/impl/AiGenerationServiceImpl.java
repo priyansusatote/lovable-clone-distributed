@@ -1,6 +1,7 @@
 package com.priyansu.distributed_lovable.intelligence_service.service.impl;
 
 
+import com.priyansu.distributed_lovable.common_lib.enums.ChatEventStatus;
 import com.priyansu.distributed_lovable.common_lib.enums.ChatEventType;
 import com.priyansu.distributed_lovable.common_lib.enums.MessageRole;
 import com.priyansu.distributed_lovable.common_lib.event.FileStoreRequestEvent;
@@ -33,6 +34,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
@@ -175,6 +177,7 @@ public class AiGenerationServiceImpl implements AiGenerationService {
         List<ChatEvent> chatEventsList = llmResponseParser.parseChatEvents(fullText, assistantChatMessage);
         chatEventsList.addFirst(ChatEvent.builder()
                 .type(ChatEventType.THOUGHT)
+                .status(ChatEventStatus.CONFIRMED) //it already confirmed because it did thought for that much time
                 .chatMessage(assistantChatMessage)
                 .content("Thought for " + duration + " s")
                 .sequenceOrder(0)
@@ -184,10 +187,12 @@ public class AiGenerationServiceImpl implements AiGenerationService {
         chatEventsList.stream()
                 .filter(e -> e.getType() == ChatEventType.FILE_EDIT)
                 .forEach(e -> {
-//                        projectFileService.saveFile(projectId, e.getFilePath(), e.getContent() TODO: using-Kafka
+//                        projectFileService.saveFile(projectId, e.getFilePath(), e.getContent() TODO: using-Kafka(done below)
+                    String sagaId = UUID.randomUUID().toString();  //generate random unique id for sagaId
+                    e.setSagaId(sagaId);
                     //create FileStoreRequestEvent object
                     FileStoreRequestEvent fileStoreRequestEvent = new FileStoreRequestEvent(
-                            projectId, "", e.getFilePath(), e.getContent(), userId
+                            projectId, sagaId, e.getFilePath(), e.getContent(), userId
                     );
                     log.info("Storage request event Sent: {}", e.getFilePath());
                     kafkaTemplate.send("file-storage-request-event", "project-"+projectId, fileStoreRequestEvent);  //event produced from here (now consumer(workspace-service will consume this event)
