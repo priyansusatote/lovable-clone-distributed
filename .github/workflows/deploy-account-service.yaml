@@ -30,37 +30,51 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-      
+
+      # 🔥 FIX 1: Give permission to common-lib mvnw
+      - name: Give execute permission to common-lib mvnw
+        working-directory: ./common-lib
+        run: chmod +x mvnw
+
+      # 🔥 FIX 2: Build common-lib
       - name: Build and Install Common Lib
         working-directory: ./common-lib
         run: ./mvnw clean install -DskipTests
 
+      # 🔥 FIX 3: Give permission to account-service mvnw
+      - name: Give execute permission to account-service mvnw
+        working-directory: ./${{ env.SERVICE_NAME }}
+        run: chmod +x mvnw
+
+      # 🔥 Build + Push
       - name: Build and Push Docker Image with Jib
         working-directory: ./${{ env.SERVICE_NAME }}
         run: |
-          chmod +x mvnw
           ./mvnw compile jib:build \
             -Djib.to.image=docker.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -Djib.to.tags=latest \
             -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERNAME }} \
             -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 🔐 Auth
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
 
+      # 🔗 Connect to cluster
       - name: Get GKE Credentials
         uses: google-github-actions/get-gke-credentials@v2
         with:
           cluster_name: ${{ secrets.GCP_CLUSTER }}
           location: ${{ secrets.GCP_ZONE }}
 
+      # 🚀 Deploy
       - name: Deploy to GKE
         run: |
           kubectl set image deployment/${{ env.SERVICE_NAME }} \
           ${{ env.SERVICE_NAME }}=${{ env.IMAGE_NAME }}:${{ github.sha }} \
           -n lovable-core
-          
+
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n lovable-core
