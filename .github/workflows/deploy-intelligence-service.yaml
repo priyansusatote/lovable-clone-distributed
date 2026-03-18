@@ -1,15 +1,15 @@
-name: Deploy Account Service
+name: Deploy Intelligence Service
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'account-service/**'
+      - 'intelligence-service/**'
 
 env:
-  SERVICE_NAME: account-service
-  IMAGE_NAME: priyansusatote/lovable-account-service
+  SERVICE_NAME: intelligence-service
+  IMAGE_NAME: priyansusatote/lovable-intelligence-service
 
 permissions:
   id-token: write
@@ -17,7 +17,6 @@ permissions:
 
 jobs:
   build-and-deploy:
-    name: Build, Push, and Deploy to GKE
     runs-on: ubuntu-latest
 
     steps:
@@ -30,10 +29,6 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-      
-      - name: Build and Install Common Lib
-        working-directory: ./common-lib
-        run: ./mvnw clean install -DskipTests
 
       - name: Build and Push Docker Image with Jib
         working-directory: ./${{ env.SERVICE_NAME }}
@@ -48,8 +43,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
-          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Get GKE Credentials
         uses: google-github-actions/get-gke-credentials@v2
@@ -62,5 +57,5 @@ jobs:
           kubectl set image deployment/${{ env.SERVICE_NAME }} \
           ${{ env.SERVICE_NAME }}=${{ env.IMAGE_NAME }}:${{ github.sha }} \
           -n lovable-core
-          
+
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n lovable-core
