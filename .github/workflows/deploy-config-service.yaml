@@ -5,36 +5,35 @@ on:
     branches:
       - main
     paths:
-      - 'config-service/**'   # 🔹 Trigger only when config-service code changes (microservice-based CI/CD)
+      - 'config-service/**'
 
 env:
   SERVICE_NAME: config-service
-  IMAGE_NAME: priyansusatote/lovable-config-service  # 🔹 DockerHub image name
+  IMAGE_NAME: priyansusatote/lovable-config-service
 
 permissions:
-  id-token: write   # 🔹 Required for OIDC (GitHub → GCP authentication)
+  id-token: write
   contents: read
 
 jobs:
   build-and-deploy:
-    name: Build, Push, and Deploy to GKE
-    runs-on: ubuntu-latest   # 🔹 GitHub runner (Linux VM)
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4   # 🔹 Pull latest code from repo
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: maven   # 🔹 Speeds up builds
-
+          cache: maven
 
       - name: Build and Push Docker Image with Jib
         working-directory: ./${{ env.SERVICE_NAME }}
         run: |
+          chmod +x mvnw
           ./mvnw compile jib:build \
             -Djib.to.image=docker.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -Djib.to.tags=latest \
@@ -44,23 +43,19 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
-          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
-          # 🔹 OIDC authentication (no JSON key, secure)
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Get GKE Credentials
         uses: google-github-actions/get-gke-credentials@v2
         with:
           cluster_name: ${{ secrets.GCP_CLUSTER }}
           location: ${{ secrets.GCP_ZONE }}
-          # 🔹 Connects kubectl to your GKE cluster
 
       - name: Deploy to GKE
         run: |
           kubectl set image deployment/${{ env.SERVICE_NAME }} \
           ${{ env.SERVICE_NAME }}=${{ env.IMAGE_NAME }}:${{ github.sha }} \
           -n lovable-core
-          # 🔹 Rolling update (zero downtime deployment)
 
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n lovable-core
-          # 🔹 Wait until deployment is successful
