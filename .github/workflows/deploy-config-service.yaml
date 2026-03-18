@@ -31,6 +31,10 @@ jobs:
           distribution: 'temurin'
           cache: maven   # 🔹 Speeds up builds
 
+      - name: Give execute permission to mvnw
+        working-directory: ./${{ env.SERVICE_NAME }}
+        run: chmod +x mvnw
+
       - name: Build and Push Docker Image with Jib
         working-directory: ./${{ env.SERVICE_NAME }}
         run: |
