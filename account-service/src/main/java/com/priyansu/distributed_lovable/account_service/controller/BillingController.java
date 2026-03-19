@@ -39,19 +39,19 @@ public class BillingController {
 
 
 
-    @GetMapping("/api/me/subscription")
+    @GetMapping("/me/subscription")
     public ResponseEntity<SubscriptionResponse> getMySubscription(){
         Long userId = 1L;
         return ResponseEntity.ok(subscriptionService.getCurrentSubscription());
     }
 
-    @PostMapping("/api/payments/checkout")
+    @PostMapping("/payments/checkout")
     public ResponseEntity<CheckoutResponse> createCheckoutResponse(@RequestBody CheckoutRequest request){
 
         return ResponseEntity.ok(paymentProcessor.createCheckoutSessionUrl(request));
     }
 
-    @PostMapping("/api/payments/portal")
+    @PostMapping("/payments/portal")
     public ResponseEntity<PortalResponse> openCustomerPortal(){
         return ResponseEntity.ok(paymentProcessor.openCustomerPortal());
     }
