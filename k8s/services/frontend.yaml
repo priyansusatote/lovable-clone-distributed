@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: lovable-frontend
-          image: priyansusatote/lovable-frontend@sha256:3fb7ed2499637b11be3ba36c426576d938ee9fc799a9210863d8253bc9882132
+          image: priyansusatote/lovable-frontend@sha256:6e1b48b2c44d5eb08d9472f225e0f85e7c6602d09ecfe0d6bd1fd48d94aa4b59
           imagePullPolicy: Always
           ports:
             - containerPort: 80
