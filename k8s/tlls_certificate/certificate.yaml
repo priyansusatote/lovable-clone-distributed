@@ -1,0 +1,15 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: priyansu-tls
+  namespace: lovable-core
+spec:
+  secretName: priyansu-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: priyansu.xyz
+  dnsNames:
+    - priyansu.xyz
+    - www.priyansu.xyz
+    - api.priyansu.xyz
