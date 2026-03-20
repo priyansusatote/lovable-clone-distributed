@@ -35,6 +35,10 @@ public class KubernetesDeployServiceImpl implements DeploymentService {
     @Value("${app.preview.proxy-port}")
     private String proxyPort;
 
+    @Value("${app.preview.protocol:http}") // Default to 'http' if not provided
+    private String protocol;
+
+
     private static final String POOL_LABEL = "status";
     private static final String PROJECT_LABEL = "project-id";
     private static final String IDLE = "idle";
@@ -45,10 +49,16 @@ public class KubernetesDeployServiceImpl implements DeploymentService {
         // Dynamically build the domain: project-123.app.domain.com
         String domain = "project-" + projectId + "." + baseDomain;
 
-        // Use default port 80 format logic for clean URLs, or explicit ports for local testing
-        String formattedUrl = proxyPort.equals("80")
-                ? "http://" + domain
-                : "http://" + domain + ":" + proxyPort;
+//        // Use default port 80 format logic for clean URLs, or explicit ports for local testing
+//        String formattedUrl = proxyPort.equals("80")
+//                ? "http://" + domain
+//                : "http://" + domain + ":" + proxyPort;
+
+        // Use default port 80/443 format logic for clean URLs, or explicit ports for local testing
+        String formattedUrl = (proxyPort.equals("80") || proxyPort.equals("443"))
+                ? protocol + "://" + domain
+                : protocol + "://" + domain + ":" + proxyPort;
+
 
         Pod existingPod = findActivePod(projectId);
 

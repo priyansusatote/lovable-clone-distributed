@@ -13,3 +13,4 @@ spec:
     - priyansu.xyz
     - www.priyansu.xyz
     - api.priyansu.xyz
+    - "*.previews.priyansu.xyz"

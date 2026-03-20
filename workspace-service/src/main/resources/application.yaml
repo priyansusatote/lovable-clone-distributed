@@ -3,3 +3,11 @@ spring:
     name: workspace-service
   config:
     import: configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+
+# Add your custom app properties here
+app:
+  preview:
+    namespace: ${APP_PREVIEW_NAMESPACE:lovable-core}
+    domain: ${APP_PREVIEW_DOMAIN:previews.local}
+    proxy-port: ${APP_PREVIEW_PORT:80}
+    protocol: ${APP_PREVIEW_PROTOCOL:http} # <--- DYNAMIC FALLBACK
