@@ -165,18 +165,34 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
 
         SubscriptionStatus status = mapStripeStatusToEnum(subscription.getStatus());
         if (status == null) {
-            log.warn("Unknown subscription status: {} for subscription {} ", subscription.getStatus(), subscription.getId());
+            log.warn("Unknown subscription status: {} for subscription {}", subscription.getStatus(), subscription.getId());
             return;
         }
 
-        SubscriptionItem item = subscription.getItems().getData().get(0);
-        Instant periodStart = toInstant(item.getCurrentPeriodStart());  //toInstant we created this method to convert Long to instant
-        Instant periodEnd = toInstant(item.getCurrentPeriodEnd());
+        Long periodStart = null;
+        Long periodEnd = null;
+        Long planId = null;
 
-        Long planId = resolvePlanId(item.getPrice());
+        if (subscription.getItems() != null &&
+                subscription.getItems().getData() != null &&
+                !subscription.getItems().getData().isEmpty()) {
 
-        subscriptionService.updateSubscription(subscription.getId(), status, periodStart, periodEnd, subscription.getCancelAtPeriodEnd(), planId);
+            SubscriptionItem item = subscription.getItems().getData().get(0);
 
+            periodStart = item.getCurrentPeriodStart();
+            periodEnd = item.getCurrentPeriodEnd();
+
+            planId = resolvePlanId(item.getPrice());
+        }
+
+        subscriptionService.updateSubscription(
+                subscription.getId(),
+                status,
+                toInstant(periodStart),
+                toInstant(periodEnd),
+                subscription.getCancelAtPeriodEnd(),
+                planId
+        );
     }
 
 
@@ -191,19 +207,37 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
 
     private void handleInvoicePaid(Invoice invoice) {
         String subId = extractSubscriptionId(invoice);
-        if (subId == null) return;
+        if (subId == null) {
+            log.warn("Invoice has no subscription id: {}", invoice.getId());
+            return;
+        }
 
         try {
-            Subscription subscription = Subscription.retrieve(subId); //sdk calling the stripe server to get subscription info
+            Subscription subscription = Subscription.retrieve(subId);
 
-            var item = subscription.getItems().getData().get(0);
-            Instant periodStart = toInstant(item.getCurrentPeriodStart());
-            Instant periodEnd = toInstant(item.getCurrentPeriodEnd());
+            Long periodStart = null;
+            Long periodEnd = null;
 
-            subscriptionService.renewSubscriptionPeriod(subId, periodStart, periodEnd); //this is called only once 1st time, then from next months automatically called for every next months
+            if (subscription.getItems() != null &&
+                    subscription.getItems().getData() != null &&
+                    !subscription.getItems().getData().isEmpty()) {
 
+                SubscriptionItem item = subscription.getItems().getData().get(0);
+
+                periodStart = item.getCurrentPeriodStart();
+                periodEnd = item.getCurrentPeriodEnd();
+            }
+
+            subscriptionService.renewSubscriptionPeriod(
+                    subId,
+                    toInstant(periodStart),
+                    toInstant(periodEnd)
+            );
+
+            log.info("Invoice paid processed for subscription: {}", subId);
 
         } catch (StripeException e) {
+            log.error("Stripe error while processing invoice.paid for {}", subId, e);
             throw new RuntimeException(e);
         }
     }
@@ -253,17 +287,14 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
     }
 
     private String extractSubscriptionId(Invoice invoice) {
-        var parent = invoice.getParent();
-        if (parent == null) {
-            return null;
+        if (invoice == null || invoice.getLines() == null) return null;
+
+        for (var line : invoice.getLines().getData()) {
+            if (line.getSubscription() != null) {
+                return line.getSubscription();
+            }
         }
 
-        var subDetails = parent.getSubscriptionDetails();
-        if (subDetails == null) {
-            return null;
-        }
-
-        return subDetails.getSubscription();
+        return null;
     }
-
 }

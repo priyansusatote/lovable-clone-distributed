@@ -156,3 +156,24 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-proxy-to-previews
+  namespace: lovable-core
+spec:
+  podSelector:
+    matchLabels:
+      app: lovable-me-proxy
+  policyTypes:
+  - Egress
+  egress:
+  - ports:
+    - port: 5173
+      protocol: TCP
+    to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: lovable-previews

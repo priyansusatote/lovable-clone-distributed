@@ -51,6 +51,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     //stored subscription object inside DB, (this happens after a CheckOut done) ,after Invoice paid event then we will mark this Subscription event status to Complete
     @Override
     public void activateSubscription(Long userId, Long planId, String subscriptionId, String customerId) {
+        log.info("Activating subscription for userId={}, planId={}, subId={}", userId, planId, subscriptionId);
 
         boolean exists = subscriptionRepository.existsByStripeSubscriptionId(subscriptionId);
         if (exists) {
