@@ -32,7 +32,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final SubscriptionMapper subscriptionMapper;
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
-   // private final ProjectMemberRepository projectMemberRepository;
+    // private final ProjectMemberRepository projectMemberRepository;
     private final Integer FREE_TIER_PROJECTS_ALLOWED = 100;  //for development try and tasting(in real= 1)
 
     @Override
@@ -41,8 +41,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
 
         var currentSubscription = subscriptionRepository.findByUserIdAndStatusIn(userId, Set.of(
-                SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.TRAILING
-        ) ).orElse(
+                SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.TRAILING, SubscriptionStatus.INCOMPLETE
+        )).orElse(
                 new Subscription());
 
         return subscriptionMapper.toSubscriptionResponse(currentSubscription);
@@ -53,19 +53,59 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     public void activateSubscription(Long userId, Long planId, String subscriptionId, String customerId) {
 
         boolean exists = subscriptionRepository.existsByStripeSubscriptionId(subscriptionId);
-        if(exists) return;
+        if (exists) {
+            log.debug("Subscription already exists: {}", subscriptionId);
+            return;
+        }
 
         User user = getUser(userId);
         Plan plan = getPlan(planId);
 
-        Subscription subscription = Subscription.builder()
-                .user(user)
-                .plan(plan)
-                .stripeSubscriptionId(subscriptionId)
-                .status(SubscriptionStatus.INCOMPLETE)
-                .build();
+        try {
+            com.stripe.model.Subscription stripeSub =
+                    com.stripe.model.Subscription.retrieve(subscriptionId);
 
-        subscriptionRepository.save(subscription);
+            Long periodStart = null;
+            Long periodEnd = null;
+
+            // ✅ SAFE ACCESS (IMPORTANT)
+            if (stripeSub.getItems() != null &&
+                    stripeSub.getItems().getData() != null &&
+                    !stripeSub.getItems().getData().isEmpty()) {
+
+                var item = stripeSub.getItems().getData().get(0);
+
+                periodStart = item.getCurrentPeriodStart();
+                periodEnd = item.getCurrentPeriodEnd();
+            }
+
+            Subscription subscription = Subscription.builder()
+                    .user(user)
+                    .plan(plan)
+                    .stripeSubscriptionId(subscriptionId)
+
+                    // 🔥 FIX
+                    .status(SubscriptionStatus.ACTIVE)
+
+                    .currentPeriodStart(
+                            periodStart != null ? Instant.ofEpochSecond(periodStart) : null
+                    )
+                    .currentPeriodEnd(
+                            periodEnd != null ? Instant.ofEpochSecond(periodEnd) : null
+                    )
+
+                    .cancelAtPeriodEnd(stripeSub.getCancelAtPeriodEnd())
+
+                    .build();
+
+            subscriptionRepository.save(subscription);
+
+            log.info("Subscription activated successfully: {}", subscriptionId);
+
+        } catch (com.stripe.exception.StripeException e) {
+            log.error("Stripe error while activating subscription {}", subscriptionId, e);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -75,38 +115,38 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         boolean hasSubscriptionUpdated = false;   //flag
 
-        if(status != null && status != subscription.getStatus() ) { //means it is changed/updated
+        if (status != null && status != subscription.getStatus()) { //means it is changed/updated
             subscription.setStatus(status);
 
             hasSubscriptionUpdated = true;
         }
 
-        if(periodStart != null && !periodStart.equals(subscription.getCurrentPeriodStart())) {
+        if (periodStart != null && !periodStart.equals(subscription.getCurrentPeriodStart())) {
             subscription.setCurrentPeriodStart(periodStart);
 
             hasSubscriptionUpdated = true;
         }
 
-        if(periodEnd != null && !periodEnd.equals(subscription.getCurrentPeriodEnd())) {
+        if (periodEnd != null && !periodEnd.equals(subscription.getCurrentPeriodEnd())) {
             subscription.setCurrentPeriodEnd(periodEnd);
 
             hasSubscriptionUpdated = true;
         }
 
-        if(cancelAtPeriodEnd != null && cancelAtPeriodEnd != subscription.getCancelAtPeriodEnd()) {
+        if (cancelAtPeriodEnd != null && cancelAtPeriodEnd != subscription.getCancelAtPeriodEnd()) {
             subscription.setCancelAtPeriodEnd(cancelAtPeriodEnd);
 
             hasSubscriptionUpdated = true;
         }
 
-        if(planId != null && !planId.equals(subscription.getPlan().getId())) {
+        if (planId != null && !planId.equals(subscription.getPlan().getId())) {
             Plan plan = getPlan(planId);
             subscription.setPlan(plan);
 
             hasSubscriptionUpdated = true;
         }
 
-        if(hasSubscriptionUpdated) {
+        if (hasSubscriptionUpdated) {
             log.debug("Subscription has been updated: {}", gatewaySubscriptionId);
             subscriptionRepository.save(subscription);
         }
@@ -131,7 +171,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscription.setCurrentPeriodStart(newStart);
         subscription.setCurrentPeriodEnd(periodEnd);
 
-        if(subscription.getStatus() == SubscriptionStatus.PAST_DUE || subscription.getStatus() == SubscriptionStatus.INCOMPLETE) {
+        if (subscription.getStatus() == SubscriptionStatus.PAST_DUE || subscription.getStatus() == SubscriptionStatus.INCOMPLETE) {
             subscription.setStatus(SubscriptionStatus.ACTIVE);
         }
         subscriptionRepository.save(subscription);
@@ -141,7 +181,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     public void markSubscriptionPastDue(String gatewaySubscriptionId) {
         Subscription subscription = getSubscription(gatewaySubscriptionId);
 
-        if(subscription.getStatus() == SubscriptionStatus.PAST_DUE) {
+        if (subscription.getStatus() == SubscriptionStatus.PAST_DUE) {
             log.debug("Subscription is Already Past Due, {}", gatewaySubscriptionId);
             return;
         }
