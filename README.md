@@ -1,7 +1,7 @@
 <div align="center">
 
 # 🚀 Distributed Lovable
-### AI-Powered Full-Stack Code Generator — Production Microservices on Kubernetes
+### AI-Powered Frontend Code Generator — Production Microservices on Kubernetes
 
 **A distributed backend clone of [Lovable.dev](https://lovable.dev) — built with Spring Boot, Spring AI, Kubernetes, and Kafka.**
 
