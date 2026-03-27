@@ -290,9 +290,15 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
     private String extractSubscriptionId(Invoice invoice) {
         if (invoice == null || invoice.getLines() == null) return null;
 
-        // In Stripe SDK v31 / API 2025-03-31.basil, Invoice.getSubscription() was removed from
-        // the top-level Invoice model. Use InvoiceLineItem.getSubscription() which still works.
         for (var line : invoice.getLines().getData()) {
+            // Stripe API 2025-03-31.basil (SDK v31): subscription is now under parent.subscriptionItemDetails
+            if (line.getParent() != null &&
+                    line.getParent().getSubscriptionItemDetails() != null &&
+                    line.getParent().getSubscriptionItemDetails().getSubscription() != null) {
+                return line.getParent().getSubscriptionItemDetails().getSubscription();
+            }
+
+            // Fallback: older API format where subscription was a direct field on InvoiceLineItem
             if (line.getSubscription() != null) {
                 return line.getSubscription();
             }
