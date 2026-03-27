@@ -50,6 +50,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     //stored subscription object inside DB, (this happens after a CheckOut done) ,after Invoice paid event then we will mark this Subscription event status to Complete
     @Override
+    @Transactional
     public void activateSubscription(Long userId, Long planId, String subscriptionId, String customerId) {
         log.info("Activating subscription for userId={}, planId={}, subId={}", userId, planId, subscriptionId);
 
@@ -156,6 +157,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
+    @Transactional
     public void cancelSubscription(String gatewaySubscriptionId) {
         Subscription subscription = getSubscription(gatewaySubscriptionId);
 
@@ -166,6 +168,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
+    @Transactional
     public void renewSubscriptionPeriod(String gatewaySubscriptionId, Instant periodStart, Instant periodEnd) {
         Subscription subscription = getSubscription(gatewaySubscriptionId);   //used Utility method (from below last)
         Instant newStart = periodStart != null ? periodStart : subscription.getCurrentPeriodEnd();
@@ -179,6 +182,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
+    @Transactional
     public void markSubscriptionPastDue(String gatewaySubscriptionId) {
         Subscription subscription = getSubscription(gatewaySubscriptionId);
 

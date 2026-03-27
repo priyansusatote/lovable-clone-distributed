@@ -41,7 +41,6 @@ public class BillingController {
 
     @GetMapping("/me/subscription")
     public ResponseEntity<SubscriptionResponse> getMySubscription(){
-        Long userId = 1L;
         return ResponseEntity.ok(subscriptionService.getCurrentSubscription());
     }
 

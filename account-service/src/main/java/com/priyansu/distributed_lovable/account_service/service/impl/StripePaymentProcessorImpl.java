@@ -76,7 +76,7 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
             if (stripeCustomerId == null || stripeCustomerId.isEmpty()) {
                 params.setCustomerEmail(user.getUsername()); //new user -> stripe creates new Customer
             } else {
-                params.setCustomerEmail(stripeCustomerId); //we provide StripeCustomerId (if u provide stripe Customer id for same user again&again stripe will not create duplicate customer Consider as a one
+                params.setCustomer(stripeCustomerId); //returning user: pass Stripe Customer ID directly so stripe links to existing customer
             }
 
             Session session = Session.create(params.build()); //SDK making API call to Stripe server
@@ -179,9 +179,9 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
 
             SubscriptionItem item = subscription.getItems().getData().get(0);
 
+            // SDK v31 / API 2025-03-31.basil: currentPeriodStart/End moved FROM Subscription root TO SubscriptionItem
             periodStart = item.getCurrentPeriodStart();
             periodEnd = item.getCurrentPeriodEnd();
-
             planId = resolvePlanId(item.getPrice());
         }
 
@@ -224,6 +224,7 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
 
                 SubscriptionItem item = subscription.getItems().getData().get(0);
 
+                // SDK v31 / API 2025-03-31.basil: currentPeriodStart/End moved FROM Subscription root TO SubscriptionItem
                 periodStart = item.getCurrentPeriodStart();
                 periodEnd = item.getCurrentPeriodEnd();
             }
@@ -261,9 +262,9 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
     private SubscriptionStatus mapStripeStatusToEnum(String status) {
         return switch (status) {
             case "active" -> SubscriptionStatus.ACTIVE;
-            case "trailing" -> SubscriptionStatus.TRAILING;
+            case "trialing" -> SubscriptionStatus.TRAILING; // Bug fix: Stripe sends "trialing" not "trailing"
             case "past_due", "unpaid", "paused", "incomplete_expired" -> SubscriptionStatus.PAST_DUE;
-            case "cancelled" -> SubscriptionStatus.CANCELLED;
+            case "canceled", "cancelled" -> SubscriptionStatus.CANCELLED; // Stripe uses American spelling "canceled"
             case "incomplete" -> SubscriptionStatus.INCOMPLETE;
             default -> {
                 log.warn("Unmapped Stripe Subscription Status: {}", status);
@@ -289,6 +290,8 @@ public class StripePaymentProcessorImpl implements PaymentProcessor {
     private String extractSubscriptionId(Invoice invoice) {
         if (invoice == null || invoice.getLines() == null) return null;
 
+        // In Stripe SDK v31 / API 2025-03-31.basil, Invoice.getSubscription() was removed from
+        // the top-level Invoice model. Use InvoiceLineItem.getSubscription() which still works.
         for (var line : invoice.getLines().getData()) {
             if (line.getSubscription() != null) {
                 return line.getSubscription();
